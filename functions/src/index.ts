@@ -6,6 +6,8 @@ import cors from "cors";
 import randomstring from "randomstring";
 import generator from "project-name-generator";
 
+// TODO: tests
+
 admin.initializeApp({
   credential: admin.credential.applicationDefault(),
   databaseURL: "https://progresscast-default-rtdb.firebaseio.com",
@@ -30,7 +32,6 @@ interface Loadbar {
 }
 
 interface Session {
-  // to be stored in database
   // user: string;
   slug: string;
   apiKey: string;
@@ -40,11 +41,26 @@ interface Session {
 
 // const color_from_status: {[key: string]: string} = {
 //   not_started: "white",
-//   in_progress: "blue",
+//   in_progress: "blue",us-central1-progresscast.cloudfunctions.net
 //   completed: "green",
 //   error: "red",
 //   disconnected_or_crashed: "black"
 // }
+
+const getUniqueSlug = () =>
+  new Promise<string>((resolve, reject) => {
+    const slug: string = generator({ words: 3, number: true }).dashed;
+    db.ref(`sessions/${slug}`)
+      .once("value")
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          getUniqueSlug().then(resolve).catch(reject);
+        } else {
+          resolve(slug);
+        }
+      })
+      .catch(reject);
+  });
 
 app.post("/getKey", (request, response) => {
   if (!request.body.total) {
@@ -52,30 +68,36 @@ app.post("/getKey", (request, response) => {
     return;
   }
   const apiKey = randomstring.generate({ length: 32 });
-  const slug: string = generator({ words: 3, number: true }).dashed; // TODO: check that this is unique
-
-  const responseSession: Session = {
-    slug: slug,
-    apiKey: apiKey,
-    loadbar: {
-      current: request.body.current || 0,
-      total: request.body.total,
-      status: request.body.current ? Status.in_progress : Status.not_started,
-    },
-    log: request.body.log || "",
-  };
-  db.ref(`sessions/${slug}`)
-    .set(responseSession)
-    .then((res) => {
-      console.log(`response from db: ${res}`);
-      response.json(responseSession);
+  getUniqueSlug()
+    .then((slug) => {
+      const responseSession: Session = {
+        slug: slug,
+        apiKey: apiKey,
+        loadbar: {
+          current: request.body.current || 0,
+          total: request.body.total,
+          status: request.body.current
+            ? Status.in_progress
+            : Status.not_started,
+        },
+        log: request.body.log || "",
+      };
+      db.ref(`sessions/${slug}`)
+        .set(responseSession)
+        .then((res) => {
+          console.log(`response from db: ${res}`);
+          response.json(responseSession);
+        })
+        .catch((err) => {
+          console.error(err);
+          response.status(400).send(`Error sending to database with ${err}`);
+        });
     })
     .catch((err) => {
       console.error(err);
       response.status(400).send(`Error sending to database with ${err}`);
     });
 });
-exports.api = functions.https.onRequest(app);
 
 app.post("/update", (request, response) => {
   // updates status, current and total and appends log
@@ -115,18 +137,4 @@ app.post("/update", (request, response) => {
     });
 });
 
-/*
-Calls:
-- get password
-- set state (current, total, status) (requires muid and password)
-- append log (also required muid and apikey)
-
-verifying apikey
-
-Each object in database: {
-  loadbar: {
-
-  }
-}
-sessions
-*/
+exports.api = functions.https.onRequest(app);
