@@ -30,7 +30,7 @@ class Connection:
         do_print_url: bool = True,
         do_use_async: bool = True,
         do_raise_request_error: bool = False,
-        do_capture_log: bool = True
+        do_capture_log: bool = True,
     ) -> None:
         if total <= 0:
             raise ValueError("Total must be positive")
@@ -50,7 +50,7 @@ class Connection:
 
         self.do_use_async = do_use_async
         if do_use_async:
-          self.pool = Pool()
+            self.pool = Pool()
 
         response = requests.post(
             Connection.API_URL + "getKey",
@@ -72,42 +72,43 @@ class Connection:
         updateObj["slug"] = self.slug
         updateObj["apiKey"] = self.__apiKey
 
-        if self.do_use_async: 
-          def on_error(error):
-            if self.do_raise_request_error:
-              raise ConnectionError(f"Error updating data: {error}")
+        if self.do_use_async:
 
-          self.pool.apply_async(
-              requests.post,
-              args=[Connection.API_URL + "update", updateObj],
-              error_callback=on_error,
-          )
-        
+            def on_error(error):
+                if self.do_raise_request_error:
+                    raise ConnectionError(f"Error updating data: {error}")
+
+            self.pool.apply_async(
+                requests.post,
+                args=[Connection.API_URL + "update", updateObj],
+                error_callback=on_error,
+            )
+
         else:
-          response = requests.post(Connection.API_URL + "update", json=updateObj)
-          if not response.ok:
-            raise Exception(f"Invalid response {response} from backend")
+            response = requests.post(Connection.API_URL + "update", json=updateObj)
+            if not response.ok:
+                raise Exception(f"Invalid response {response} from backend")
 
     def start_redirect_stdout(self):
-      if self.do_capture_log:
-        self._stdout = sys.stdout # temporary storage
-        sys.stdout = self.new_log
-    
+        if self.do_capture_log:
+            self._stdout = sys.stdout  # temporary storage
+            sys.stdout = self.new_log
+
     def stop_redirect_stdout(self) -> Union[str, None]:
-      if self.do_capture_log:
-        return_string = self.new_log.getvalue()
-        sys.stdout = self._stdout
-        self.new_log.close()
-        self.new_log = StringIO()
-        return return_string
-      else:
-        return None
+        if self.do_capture_log:
+            return_string = self.new_log.getvalue()
+            sys.stdout = self._stdout
+            self.new_log.close()
+            self.new_log = StringIO()
+            return return_string
+        else:
+            return None
 
     def close(self):
-      if self.do_use_async:
-        self.pool.close()
-      if self.do_capture_log:
-        self.stop_redirect_stdout()
+        if self.do_use_async:
+            self.pool.close()
+        if self.do_capture_log:
+            self.stop_redirect_stdout()
 
     def __repr__(self):
         return f"Connection(slug={self.slug}, progress{self.current}/{self.total}, status={self.status})"

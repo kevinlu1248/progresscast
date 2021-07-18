@@ -1,6 +1,6 @@
 # the main loadbar
 
-from tqdm.auto import tqdm as std_tqdm # type: ignore
+from tqdm.auto import tqdm as std_tqdm  # type: ignore
 
 from connection import Connection
 
@@ -22,15 +22,17 @@ class LoadbarHelper(std_tqdm):
         displayed = super().update(n)
         if displayed:
             status = "completed" if self.n == self.total else "in progress"
-            new_log = self.conn.stop_redirect_stdout() # getting currently added logs
-            self.conn.update({"current": n, "status": status, "log": new_log}) # updating backend
+            new_log = self.conn.stop_redirect_stdout()  # getting currently added logs
+            self.conn.update(
+                {"current": n, "status": status, "log": new_log}
+            )  # updating backend
             if new_log:
                 print(new_log)
             self.conn.start_redirect_stdout()
         return displayed
 
 
-def Loadbar(
+def loadbar(
     iterable,
     total=None,
     status="not started",
@@ -41,7 +43,12 @@ def Loadbar(
 ):
     # capture output
     loadbarHelper = LoadbarHelper(
-        iterable=iterable, total=total, status=status, do_capture_log=do_capture_log, *args, **kwargs
+        iterable=iterable,
+        total=total,
+        status=status,
+        do_capture_log=do_capture_log,
+        *args,
+        **kwargs
     )
     iterator = iter(loadbarHelper)
     loadbarHelper.conn.start_redirect_stdout()
@@ -56,19 +63,20 @@ def Loadbar(
             raise e
     # reporting progress as complete
     loadbarHelper.conn.update({"status": "completed"})
-    loadbarHelper.conn.close() # cleanup
+    loadbarHelper.conn.close()  # cleanup
+
 
 if __name__ == "__main__":
     N = int(1e3)
     import time
 
     start = time.time()
-    for i in Loadbar(range(N)):
+    for i in loadbar(range(N)):
         pass
     print(time.time() - start)
-    
 
     from tqdm import tqdm
+
     start = time.time()
     Connection(N)
     for i in tqdm(range(N)):
@@ -80,4 +88,3 @@ if __name__ == "__main__":
     for i in range(N):
         pass
     print(time.time() - start)
-
